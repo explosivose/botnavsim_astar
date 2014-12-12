@@ -33,11 +33,11 @@
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="Assembly-CSharp">
-      <HintPath>..\..\..\GitHub\botnavsim\Build\botnavsim_Data\Managed\Assembly-CSharp.dll</HintPath>
+      <HintPath>..\..\..\botnavsim\Build\botnavsim_Data\Managed\Assembly-CSharp.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="UnityEngine">
-      <HintPath>..\..\..\GitHub\botnavsim\Build\botnavsim_Data\Managed\UnityEngine.dll</HintPath>
+      <HintPath>..\..\..\botnavsim\Build\botnavsim_Data\Managed\UnityEngine.dll</HintPath>
       <Private>False</Private>
     </Reference>
   </ItemGroup>

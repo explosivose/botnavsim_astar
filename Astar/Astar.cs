@@ -13,6 +13,7 @@ Square graph where every node is connected to 8 neighbors
 */
 //------------------------------------------------------------------------------
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -121,99 +122,21 @@ namespace Astar {
 			for (int x = 0; x < X; x++) {
 				for (int y = 0; y < Y; y++) {
 					graph[x,y].DrawGizmos();
+					graph[x,y].DrawLines();
+				}
+			}
+		}
+		
+		public void DrawDebug() {
+			for (int x = 0; x < X; x++) {
+				for (int y = 0; y < Y; y++) {
+					graph[x,y].DrawLines();
 				}
 			}
 		}
 	}
 	
-	/*
-	/// <summary>
-	/// Astar node render.
-	/// </summary>
-	public class AstarNodeRender : MonoBehaviour {
-		
-		public Material obstructedMat;
-		public Material openMat;
-		public Material closedMat;
-		public Material pathMat;
-		public Material startMat;
-		public Material destinationMat;
-		
-		public Node myNode {get; set;}
-		
-		private MeshRenderer _renderer;
-		private LineRenderer _line;
-		
-		void Awake() {
-			_renderer = GetComponent<MeshRenderer>();
-			_line = GetComponent<LineRenderer>();
-		}
-		
-		void Update() {
-			if (!myNode) return;
-			if (myNode.hasChanged) {
-				myNode.hasChanged = false;
-				UpdateMaterial();
-			}
-		}
-		
-		void UpdateMaterial() {
-			
-			if (myNode.type == Node.Type.obstructed) {
-				_renderer.enabled = true;
-				_renderer.material = obstructedMat;
-				_line.enabled = false;
-				return;
-			}
-			
-			if (myNode.state == Node.State.regular) {
-				_renderer.enabled = false;
-				_line.enabled = false;
-				return;
-			}
-			else {
-				_renderer.enabled = true;
-			}
-			
-			if (myNode.state == Node.State.start) 
-				_renderer.material = startMat;
-			else if (myNode.state == Node.State.destination)
-				_renderer.material = destinationMat;
-			else if (myNode.state == Node.State.closed)
-				_renderer.material = closedMat;
-			else if (myNode.state == Node.State.open) 
-				_renderer.material = openMat;
-			else if (myNode.state == Node.State.path)
-				_renderer.material = pathMat;
-			
-			
-			if (myNode.child) {
-				_line.enabled = true;
-				_line.SetVertexCount(2);
-				_line.SetPosition(0, myNode.position);
-				_line.SetPosition(1, myNode.child.position);
-				_line.material = pathMat;
-			}
-			else if (myNode.parent) {
-				_line.enabled = true;
-				_line.SetVertexCount(2);
-				_line.SetPosition(0, myNode.position);
-				_line.SetPosition(1, myNode.parent.position);
-				_line.material = closedMat;
-			}
-			else {
-				_line.enabled = true;
-				_line.SetVertexCount(myNode.connected.Count * 2);
-				for (int i = 0; i < myNode.connected.Count * 2 - 2; i+=2) {
-					_line.SetPosition(i, myNode.position);
-					_line.SetPosition(i+1, myNode.connected[i/2].position);
-				}
-				_line.material = openMat;
-			}
-			
-		}
-	}
-	*/
+
 	
 	/// <summary>
 	/// Node.
@@ -350,8 +273,6 @@ namespace Astar {
 		private Node _parent;
 		private Node _child;
 		private Node _destination;
-		//private Transform _renderPrefab;
-		//private Transform _renderInstance;
 		
 		public static implicit operator bool (Node n) {
 			return n != null;
@@ -370,12 +291,6 @@ namespace Astar {
 			type = Type.unexplored;
 			color = Color.white;
 			graph = g;
-			//if (nodePrefab) {
-				//_renderPrefab = nodePrefab;
-				//_renderPrefab.CreatePool();
-				//_renderInstance = _renderPrefab.Spawn(location);
-				//_renderInstance.GetComponent<AstarNodeRender>().myNode = this;
-			//}
 		}
 		
 		/// <summary>
@@ -427,6 +342,35 @@ namespace Astar {
 			}
 			
 		}
+		
+		public void DrawLines() {
+			if (type == Type.obstructed) {
+				Draw.Instance.Cube(
+					position, Vector3.one * 0.25f,
+					Color.red);
+				return;
+			}
+			
+			if (state == State.regular) return;
+			
+			Draw.Instance.Line (
+				position, position + Vector3.down,
+				color);
+			
+			if (parent) {
+				Draw.Instance.Line(
+					position,parent.position,
+					color);
+			}
+			else {
+				foreach (Node n in connected) {
+					Draw.Instance.Line(
+						position, n.position, 
+						color);
+				}
+			}
+			
+		}
 	}
 	
 	
@@ -436,8 +380,7 @@ namespace Astar {
 	public class Astar : INavigation {
 		
 		private SquareGraph graphData;
-		private Vector3 target;
-		private Vector3 botposition;
+		private Bounds bounds;
 		private List<Node> open = new List<Node>();
 		private List<Node> closed = new List<Node>();
 		private Node startNode;
@@ -448,78 +391,81 @@ namespace Astar {
 			
 		}
 		
-		// INavigation Methods
-		
-		public void SetSearchSpace(Bounds searchSpace) {
-			graphData = new SquareGraph(searchSpace.min, searchSpace.max, 50);
-		}
-		
-		public void SetDestination(Vector3 destination) {
-			target = destination;
+		public IEnumerator SearchForPath () {
+			if (graphData == null) yield break;
 			StartSearch();
+			yield break;
+		}
+		public IEnumerator SearchForPath(Vector3 start, Vector3 end) {
+			if (graphData == null) yield break;
+			origin = start;
+			destination = end;
+			StartSearch();
+			yield break;
 		}
 
-		public Vector3 GetDestination () {
-			return target;
-		}
-		
-		public void SetBotPosition(Vector3 position) {
-			botposition = position;
-		}
-
-		public Vector3 GetBotPosition() {
-			return botposition;
-		}
-
-		public Vector3 MoveDirection (Vector3 currentPosition) {
+		public Vector3 PathDirection (Vector3 myLocation) {
 			if (!nextNodeInPath) return Vector3.zero;
-			botposition = currentPosition;
+			origin = myLocation;
 			// advance nextNodeInPath if we're close enough to it
 			if (nextNodeInPath.state != Node.State.destination)
-				if (Vector3.Distance(currentPosition, nextNodeInPath.position) < graphData.spacing * 0.6f)
+				if (Vector3.Distance(myLocation, nextNodeInPath.position) < graphData.spacing * 0.6f)
 					nextNodeInPath = nextNodeInPath.child;
 			
-			return (nextNodeInPath.position - currentPosition).normalized;
+			return (nextNodeInPath.position - myLocation).normalized;
 		}
 
-		public void DepthData(Vector3 start, Vector3 end, bool obstructed) {
-			Vector3 mark = start;
-			float length = Vector3.Distance(start, end);
+		public void Proximity (Vector3 from, Vector3 to, bool obstructed) {
+			Vector3 mark = from;
+			float length = Vector3.Distance(from, to);
+			float step = graphData.spacing;
+			if (step <= 0f) step = 1f;
 			// Mark nodes in zone "II" as walkable
 			// Note that this implementation marks obstructed nodes permantently
 			// i.e. inside this method n.type cannot go from obstructed to anything else
-			for (float dist = 0f; dist < length; dist += graphData.spacing) {
-				mark = Vector3.Lerp(start, end, dist/length);
+			for (float dist = 0f; dist < length; dist += step) {
+				mark = Vector3.Lerp(from, to, dist/length);
 				Node n = graphData.NearestNode(mark);
 				if (n.type != Node.Type.obstructed) {
 					n.type = Node.Type.walkable;
 				}
 			}
 			if (obstructed) {
-				Node n = graphData.NearestNode(end);
+				Node n = graphData.NearestNode(to);
 				n.type = Node.Type.obstructed;
 				if (NodeInPath(n)) StartSearch();
 			}
 		}
 		
-		public bool SearchComplete() {
-			return (bool)nextNodeInPath;
+		public Bounds searchBounds {
+			get { return bounds; }
+			set {
+				bounds = value;
+				graphData = new SquareGraph(bounds.min, bounds.max, 50);
+			}
 		}
+
+		public Vector3 origin {get; set;}
+		public Vector3 destination {get; set;}
+		public bool pathFound {get {return (bool)nextNodeInPath;} }
 		
-		/// <summary>
-		/// DrawGizmos will draw debug information in the Unity Editor. 
-		/// To be called by OnDrawGizmos Unity event.
-		/// </summary>
+	
 		public void DrawGizmos() {
 			graphData.DrawGizmos();
+			
+		}
+		
+		public void DrawDebugInfo() {
+			graphData.DrawDebug();
 		}
 		
 		// Private Methods
 		
 		/// <summary>
-		/// Starts the A* search to target.
+		/// Starts the A* search to destination.
 		/// </summary>
 		private void StartSearch() {
+
 			// Forget previous search data
 			startNode = null;
 			nextNodeInPath = null;
@@ -537,15 +483,19 @@ namespace Astar {
 				n.state = Node.State.regular;
 			}
 			open.Clear();
+			// do nothing if graphData not set.
+			if (graphData == null) {	
+				return;
+			}
 			BuildPath();
 		}
 		
 		void BuildPath() {
 			bool success = false;
 			
-			startNode = graphData.NearestUnobstructedNode(botposition);
+			startNode = graphData.NearestUnobstructedNode(origin);
 			startNode.state = Node.State.start;
-			destinationNode = graphData.NearestUnobstructedNode(target);
+			destinationNode = graphData.NearestUnobstructedNode(destination);
 			destinationNode.state = Node.State.destination;
 			
 			open.Add(startNode);
@@ -625,10 +575,15 @@ namespace Astar {
 		bool NodeInPath(Node n) {
 			if (!nextNodeInPath) return false;
 			Node current = destinationNode;
+			int i = 0;
 			while(current.state != Node.State.start) {
 				if (current.index == n.index) return true;
 				if (!current.parent) return false;
 				current = current.parent;
+				if (++i > graphData.graph.Length) {
+					Debug.LogError("A*: start node not found!");
+					return false;
+				}
 			}
 			return false;
 		}
