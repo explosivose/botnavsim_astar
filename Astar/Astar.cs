@@ -448,7 +448,7 @@ namespace Astar {
 		public Vector3 origin {get; set;}
 		public Vector3 destination {get; set;}
 		public bool pathFound {get {return (bool)nextNodeInPath;} }
-		
+		public Space spaceRelativeTo { get { return Space.World; } }
 	
 		public void DrawGizmos() {
 			graphData.DrawGizmos();
