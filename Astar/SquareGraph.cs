@@ -15,11 +15,16 @@ namespace Astar
 	/// <summary>
 	/// Square graph.
 	/// </summary>
-	public class SquareGraph {
+	public class SquareGraph : Graph {
 		private int X = 25;
 		private int Y = 25;
-		public float spacing = 1f;
-		public Node[,] graph {get; set;}
+		public override float spacing {get; set;}
+		public override int nodeCount {
+			get {
+				return graph.Length;
+			}
+		}
+		private Node[,] graph {get; set;}
 		
 		public SquareGraph(Vector3 min, Vector3 max, int nodes) {
 			X = Y = nodes;
@@ -30,7 +35,7 @@ namespace Astar
 				for (int y = 0; y < Y; y++) {
 					Vector3 position = new Vector3(x * spacing, 0, y * spacing);
 					position += (min + Vector3.up*(max.y + min.y)/2f);
-					Node n = new Node(position, null, this);
+					Node n = new Node(position,spacing);
 					graph[x,y] = n;
 				}
 			}
@@ -38,7 +43,7 @@ namespace Astar
 			ConnectNodes();
 		}
 		
-		public void RevealObstacles() {
+		public override void RevealObstacles() {
 			// call every Node.CheckForObstacles()
 			// note that Physics obstacleLayer should be shared with 
 			// this plugin before this is implemented...
@@ -76,7 +81,7 @@ namespace Astar
 		/// <summary>
 		/// Returns the Node with position nearest to a specified world location.
 		/// </summary>
-		public Node NearestNode(Vector3 position) {
+		public override Node FindNearestNode(Vector3 position) {
 			Node nearestNode = graph[0,0];
 			float d1 = Mathf.Infinity;
 			for (int x = 0; x < X; x++) {
@@ -94,7 +99,7 @@ namespace Astar
 		/// <summary>
 		/// Returns the unobstructed Node with position nearest to a specified world location.
 		/// </summary>
-		public Node NearestUnobstructedNode(Vector3 position) {
+		public override Node FindNearestUnobstructedNode(Vector3 position) {
 			Node nearestNode = graph[0,0];
 			float d1 = Mathf.Infinity;
 			for (int x = 0; x < X; x++) {
@@ -111,7 +116,9 @@ namespace Astar
 			return nearestNode;
 		}
 		
-		public void DrawGizmos() {
+		
+		
+		public override void DrawGizmos() {
 			for (int x = 0; x < X; x++) {
 				for (int y = 0; y < Y; y++) {
 					graph[x,y].DrawGizmos();
@@ -120,10 +127,10 @@ namespace Astar
 			}
 		}
 		
-		public void DrawDebug(float height) {
+		public override void DrawNodes() {
 			for (int x = 0; x < X; x++) {
 				for (int y = 0; y < Y; y++) {
-					graph[x,y].DrawLines(height);
+					graph[x,y].DrawLines(0f);
 				}
 			}
 		}

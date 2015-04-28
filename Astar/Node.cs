@@ -31,7 +31,6 @@ namespace Astar
 			unexplored
 		}
 		
-		public SquareGraph graph;
 		public List<Node> connected = new List<Node>();
 		
 		/// <summary>
@@ -143,6 +142,7 @@ namespace Astar
 		
 		private static int node_count;
 		
+		private float _spacing;
 		private State _state;
 		private Type _type;
 		private Node _parent;
@@ -159,13 +159,13 @@ namespace Astar
 		/// <param name="location">This node location.</param>
 		/// <param name="nodePrefab">Node prefab used for runtime graph rendering. Set to null to ignore.</param>
 		/// <param name="g">The graph that this node belongs to.</param>
-		public Node(Vector3 location, Transform nodePrefab, SquareGraph g) {
+		public Node(Vector3 location, float spacing) {
 			index = node_count++;
 			position = location;
 			state = State.regular;
 			type = Type.unexplored;
 			color = Color.white;
-			graph = g;
+			_spacing = spacing;
 		}
 		
 		/// <summary>
@@ -173,11 +173,12 @@ namespace Astar
 		/// (Physics.layer not implemented yet!)
 		/// </summary>
 		public void CheckForObstacles() {
-			if (Physics.CheckSphere(position, graph.spacing-0.5f)) {
-				type = Type.obstructed;
-			}
-			else {
-				type = Type.walkable;
+			type = Type.walkable;
+			Collider[] colliders = Physics.OverlapSphere(position, _spacing * 0.5f);
+			foreach(Collider c in colliders) {
+				if (!c.isTrigger) {
+					type = Type.obstructed;
+				}
 			}
 		}
 		
@@ -204,7 +205,7 @@ namespace Astar
 			Gizmos.color = color;
 			Gizmos.DrawWireCube(
 				position,
-				Vector3.one * graph.spacing * 0.25f
+				Vector3.one * _spacing * 0.25f
 				);
 			
 			if (parent) {

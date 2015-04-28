@@ -46,6 +46,9 @@
     <Compile Include="Astar.cs" />
     <Compile Include="SquareGraph.cs" />
     <Compile Include="Node.cs" />
+    <Compile Include="CubeGraph.cs" />
+    <Compile Include="Arc.cs" />
+    <Compile Include="Graph.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
 </Project>

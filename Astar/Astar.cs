@@ -24,7 +24,7 @@ namespace Astar {
 	/// </summary>
 	public class Astar : INavigation {
 		
-		private SquareGraph graphData;
+		private Graph graph;
 		private Bounds bounds;
 		private List<Node> open = new List<Node>();
 		private List<Node> closed = new List<Node>();
@@ -32,17 +32,19 @@ namespace Astar {
 		private Node destinationNode;
 		private Node nextNodeInPath;
 		
+		private float dist_down;
+		
 		public Astar() {
 			
 		}
 		
 		public IEnumerator SearchForPath () {
-			if (graphData == null) yield break;
+			if (graph == null) yield break;
 			StartSearch();
 			yield break;
 		}
 		public IEnumerator SearchForPath(Vector3 start, Vector3 end) {
-			if (graphData == null) yield break;
+			if (graph == null) yield break;
 			origin = start;
 			destination = end;
 			StartSearch();
@@ -50,52 +52,60 @@ namespace Astar {
 		}
 
 		public Vector3 PathDirection (Vector3 myLocation) {
+			// obstacle avoidance
+			Vector3 direction = Vector3.zero;
+			
+			if (dist_down < 1f) direction += Vector3.up * graph.spacing;
+			
+			// path direction
 			if (!nextNodeInPath) return Vector3.zero;
 			origin = myLocation;
 			// advance nextNodeInPath if we're close enough to it
 			if (nextNodeInPath.state != Node.State.destination)
-				if (Vector3.Distance(myLocation, nextNodeInPath.position) < graphData.spacing * 0.6f)
+				if (Vector3.Distance(myLocation, nextNodeInPath.position + direction) < graph.spacing)
 					nextNodeInPath = nextNodeInPath.child;
 			
-			return (nextNodeInPath.position - myLocation);
+			direction += (nextNodeInPath.position - myLocation);
+			
+			return direction;
 		}
 
-		public void Proximity (Vector3 from, Vector3 to, float FOV, bool obstructed) {
+		public void Proximity (Vector3 from, Vector3 to, bool obstructed) {
+			
+			// update graph
 			Vector3 mark = from;
-			float length = Vector3.Distance(from, to);
+			float distance = Vector3.Distance(from, to);
 			Vector3 direction = (to-from).normalized;
-			float step = graphData.spacing;
-			if (step <= 0f) step = 1f;
+			float stepSize = graph.spacing;
+			if (stepSize <= 0f) stepSize = 1f;
 			// Mark nodes in zone "II" as walkable
 			// i.e. inside this method n.type cannot go from obstructed to anything else
-			for (float dist = 0f; dist < length; dist += step) {
-				mark = Vector3.Lerp(from, to, dist/length);
-				Node n = graphData.NearestNode(mark);
+			/*
+			for (float step = 0f; step < distance; step += stepSize) {
+				mark = Vector3.Lerp(from, to, step/distance);
+				Node n = graph.FindNearestNode(mark);
 				n.type = Node.Type.walkable;
 				
-			}
+			}*/
 			if (obstructed) {
-				Node n = graphData.NearestNode(to);
+				Node n = graph.FindNearestNode(to);
 				n.type = Node.Type.obstructed;
 				if (NodeInPath(n)) StartSearch();
-				// for close poximity mark nodes in arc
-				/*if (length < graphData.spacing * 5f) {
-					for (float a = -FOV; a < FOV; a+=2f) {
-						Quaternion rotation = Quaternion.Euler(new Vector3(0,a,0));
-						Vector3 arc = rotation * direction;
-						n = graphData.NearestNode(from + arc * length);
-						n.type = Node.Type.obstructed;
-					}
-				}*/
-
 			}
+			
+
+			if (Vector3.Angle(direction, Vector3.down) < 30f) {
+				dist_down = distance;
+			}
+			
 		}
 		
 		public Bounds searchBounds {
 			get { return bounds; }
 			set {
 				bounds = value;
-				graphData = new SquareGraph(bounds.min, bounds.max, 50);
+				graph = new CubeGraph(bounds, 0.5f);
+				graph.RevealObstacles();
 			}
 		}
 
@@ -105,12 +115,12 @@ namespace Astar {
 		public Space spaceRelativeTo { get { return Space.World; } }
 	
 		public void DrawGizmos() {
-			graphData.DrawGizmos();
-			
+			graph.DrawGizmos();
 		}
 		
 		public void DrawDebugInfo() {
-			graphData.DrawDebug(origin.y);
+			graph.DrawNodes();
+			
 		}
 		
 		// Private Methods
@@ -138,7 +148,7 @@ namespace Astar {
 			}
 			open.Clear();
 			// do nothing if graphData not set.
-			if (graphData == null) {	
+			if (graph == null) {	
 				return;
 			}
 			BuildPath();
@@ -147,9 +157,9 @@ namespace Astar {
 		void BuildPath() {
 			bool success = false;
 			
-			startNode = graphData.NearestUnobstructedNode(origin);
+			startNode = graph.FindNearestUnobstructedNode(origin);
 			startNode.state = Node.State.start;
-			destinationNode = graphData.NearestUnobstructedNode(destination);
+			destinationNode = graph.FindNearestUnobstructedNode(destination);
 			destinationNode.state = Node.State.destination;
 			
 			open.Add(startNode);
@@ -201,7 +211,7 @@ namespace Astar {
 					if (current.state == Node.State.closed)
 						current.state = Node.State.path;
 				}
-				if (++i > graphData.graph.Length) {
+				if (++i > graph.nodeCount) {
 					Debug.LogError("A*: Reconstruct Path Failed!");
 					break;
 				}
@@ -231,10 +241,10 @@ namespace Astar {
 			Node current = destinationNode;
 			int i = 0;
 			while(current.state != Node.State.start) {
-				if (current.index == n.index) return true;
+				if (current == n) return true;
 				if (!current.parent) return false;
 				current = current.parent;
-				if (++i > graphData.graph.Length) {
+				if (++i > graph.nodeCount) {
 					Debug.LogError("A*: start node not found!");
 					return false;
 				}
